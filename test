@@ -1,0 +1,38 @@
+#!/bin/bash
+
+set -e
+
+# === CONFIGURATION ===
+CN="admin"                      # Nom commun dans le certificat client
+CLIENT_KEY="client.key"
+CLIENT_CRT="client.crt"
+CLIENT_P12="client.p12"
+CA_CRT="ca.crt"
+CA_KEY="ca.key"
+NIFI_HOST="nifi.dcptech.fr"     # URL publique de ton Ingress
+NIFI_PORT=443
+
+# === ÉTAPE 1 : Générer la clé privée du client ===
+openssl genrsa -out $CLIENT_KEY 2048
+
+# === ÉTAPE 2 : Générer le CSR (demande de signature) ===
+openssl req -new -key $CLIENT_KEY -out client.csr -subj "/CN=$CN"
+
+# === ÉTAPE 3 : Signer avec la CA interne ===
+openssl x509 -req -in client.csr -CA $CA_CRT -CAkey $CA_KEY -CAcreateserial -out $CLIENT_CRT -days 365 -sha256
+
+# === ÉTAPE 4 : Exporter en PKCS#12 (si tu veux l'importer dans un navigateur) ===
+openssl pkcs12 -export -in $CLIENT_CRT -inkey $CLIENT_KEY -out $CLIENT_P12 -name "nifi-client" -CAfile $CA_CRT -caname "nifi-internal-ca" -passout pass:changeme
+
+echo "✅ Certificat client généré :"
+echo " - Clé privée : $CLIENT_KEY"
+echo " - Certificat : $CLIENT_CRT"
+echo " - Fichier PKCS#12 : $CLIENT_P12 (mot de passe : changeme)"
+
+# === ÉTAPE 5 : Test avec curl ===
+echo
+echo "🧪 Test avec curl :"
+curl -vk https://$NIFI_HOST:$NIFI_PORT/nifi \
+  --cert $CLIENT_CRT \
+  --key $CLIENT_KEY \
+  --cacert $CA_CRT
