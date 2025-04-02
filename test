@@ -1,5 +1,8 @@
 #!/bin/bash
 
+kubectl get secret <ton-secret-name> -n <namespace> -o jsonpath='{.data.ca\.crt}' | base64 -d > ca.crt
+kubectl get secret <ton-secret-name> -n <namespace> -o jsonpath='{.data.ca\.key}' | base64 -d > ca.key
+
 set -e
 
 # === CONFIGURATION ===
